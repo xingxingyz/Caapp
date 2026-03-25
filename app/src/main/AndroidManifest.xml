@@ -42,6 +42,15 @@
             android:label="设置闹钟"
             android:screenOrientation="portrait" />
         
+        <!-- 闹钟响铃界面 -->
+        <activity
+            android:name=".AlarmAlertActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:showOnLockScreen="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true" />
+        
         <!-- 闹钟广播接收器 -->
         <receiver
             android:name=".AlarmReceiver"
