@@ -2,13 +2,14 @@ package com.example.calendaralarm;
 
 import android.Manifest;
 import android.app.AlarmManager;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.provider.AlarmClock;
+import android.provider.Settings;
 import android.widget.Button;
 import android.widget.CalendarView;
 import android.widget.ListView;
@@ -133,35 +134,74 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
         
-        // 使用系统闹钟 API，传入具体日期
-        Intent alarmIntent = new Intent(AlarmClock.ACTION_SET_ALARM);
-        alarmIntent.putExtra(AlarmClock.EXTRA_HOUR, hour);
-        alarmIntent.putExtra(AlarmClock.EXTRA_MINUTES, minute);
-        alarmIntent.putExtra(AlarmClock.EXTRA_MESSAGE, label);
-        alarmIntent.putExtra(AlarmClock.EXTRA_SKIP_UI, false);
+        // 使用 AlarmManager 直接设置闹钟（不依赖系统闹钟应用）
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
         
-        // 关键：设置具体日期（月/日/年）
-        alarmIntent.putExtra("android.intent.extra.alarm.MONTH", alarmCal.get(Calendar.MONTH));
-        alarmIntent.putExtra("android.intent.extra.alarm.DAY", alarmCal.get(Calendar.DAY_OF_MONTH));
-        alarmIntent.putExtra("android.intent.extra.alarm.YEAR", alarmCal.get(Calendar.YEAR));
+        Intent intent = new Intent(this, AlarmReceiver.class);
+        intent.putExtra("label", label);
         
-        if (alarmIntent.resolveActivity(getPackageManager()) != null) {
-            startActivity(alarmIntent);
-            
-            // 保存到列表（使用已创建的 alarmCal）
-            AlarmItem alarm = new AlarmItem(alarmCal.getTimeInMillis(), label);
-            alarmList.add(alarm);
-            alarmList.sort((a, b) -> Long.compare(a.getTimeInMillis(), b.getTimeInMillis()));
-            alarmAdapter.notifyDataSetChanged();
-            saveAlarms();
-            
-            Toast.makeText(this, "已跳转到系统闹钟设置", Toast.LENGTH_SHORT).show();
+        // 使用唯一ID（基于时间戳）创建 PendingIntent
+        int requestCode = (int) (alarmCal.getTimeInMillis() / 1000);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+            this, requestCode, intent, 
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        
+        // 设置闹钟（精确时间）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            // Android 12+ 需要检查权限
+            if (alarmManager.canScheduleExactAlarms()) {
+                alarmManager.setExactAndAllowWhileIdle(
+                    AlarmManager.RTC_WAKEUP,
+                    alarmCal.getTimeInMillis(),
+                    pendingIntent
+                );
+            } else {
+                // 请求权限
+                Intent permIntent = new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                startActivity(permIntent);
+                Toast.makeText(this, "请先允许设置精确闹钟", Toast.LENGTH_LONG).show();
+                return;
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setExactAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                alarmCal.getTimeInMillis(),
+                pendingIntent
+            );
         } else {
-            Toast.makeText(this, "未找到系统闹钟应用", Toast.LENGTH_LONG).show();
+            alarmManager.setExact(
+                AlarmManager.RTC_WAKEUP,
+                alarmCal.getTimeInMillis(),
+                pendingIntent
+            );
         }
+        
+        // 保存到列表
+        AlarmItem alarm = new AlarmItem(alarmCal.getTimeInMillis(), label);
+        alarmList.add(alarm);
+        alarmList.sort((a, b) -> Long.compare(a.getTimeInMillis(), b.getTimeInMillis()));
+        alarmAdapter.notifyDataSetChanged();
+        saveAlarms();
+        
+        SimpleDateFormat sdf = new SimpleDateFormat("MM月dd日 HH:mm", Locale.CHINA);
+        Toast.makeText(this, "闹钟已设置：" + sdf.format(alarmCal.getTime()), Toast.LENGTH_LONG).show();
     }
 
     private void deleteAlarm(int position) {
+        AlarmItem alarm = alarmList.get(position);
+        
+        // 取消 AlarmManager 的闹钟
+        AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
+        Intent intent = new Intent(this, AlarmReceiver.class);
+        int requestCode = (int) (alarm.getTimeInMillis() / 1000);
+        PendingIntent pendingIntent = PendingIntent.getBroadcast(
+            this, requestCode, intent, 
+            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
+        alarmManager.cancel(pendingIntent);
+        pendingIntent.cancel();
+        
         alarmList.remove(position);
         alarmAdapter.notifyDataSetChanged();
         saveAlarms();
@@ -204,6 +244,16 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void checkPermissions() {
+        // 检查通知权限（Android 13+）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) 
+                    != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(this, 
+                    new String[]{Manifest.permission.POST_NOTIFICATIONS}, 
+                    REQUEST_ALARM_PERMISSION);
+            }
+        }
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // Android 12+ 需要 SCHEDULE_EXACT_ALARM 权限
             AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
