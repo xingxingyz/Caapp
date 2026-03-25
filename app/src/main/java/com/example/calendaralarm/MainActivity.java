@@ -157,10 +157,11 @@ public class MainActivity extends AppCompatActivity {
                     pendingIntent
                 );
             } else {
-                // 请求权限
-                Intent permIntent = new Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                // 引导用户去设置页面开启权限
+                Toast.makeText(this, "请开启'允许设置精确闹钟'权限", Toast.LENGTH_LONG).show();
+                Intent permIntent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
+                permIntent.setData(android.net.Uri.parse("package:" + getPackageName()));
                 startActivity(permIntent);
-                Toast.makeText(this, "请先允许设置精确闹钟", Toast.LENGTH_LONG).show();
                 return;
             }
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
