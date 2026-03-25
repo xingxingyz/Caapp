@@ -7,8 +7,10 @@ import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.widget.Button;
 import android.widget.CalendarView;
@@ -260,6 +262,28 @@ public class MainActivity extends AppCompatActivity {
             AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
             if (!alarmManager.canScheduleExactAlarms()) {
                 Toast.makeText(this, "请允许设置精确闹钟", Toast.LENGTH_LONG).show();
+            }
+        }
+        
+        // 检查电池优化（关键！）
+        checkBatteryOptimization();
+    }
+    
+    private void checkBatteryOptimization() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            if (!powerManager.isIgnoringBatteryOptimizations(getPackageName())) {
+                // 引导用户关闭电池优化
+                new AlertDialog.Builder(this)
+                    .setTitle("需要关闭电池优化")
+                    .setMessage("为保证闹钟能正常响铃，请关闭电池优化")
+                    .setPositiveButton("去设置", (dialog, which) -> {
+                        Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+                        intent.setData(Uri.parse("package:" + getPackageName()));
+                        startActivity(intent);
+                    })
+                    .setNegativeButton("稍后", null)
+                    .show();
             }
         }
     }
