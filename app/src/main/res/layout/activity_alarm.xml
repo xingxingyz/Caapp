@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="24dp"
+    android:background="#F5F5F5">
+
+    <!-- 标题 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginBottom="24dp"
+        android:text="⏰ 设置闹钟"
+        android:textColor="#333"
+        android:textSize="24sp"
+        android:textStyle="bold" />
+
+    <!-- 日期显示 -->
+    <TextView
+        android:id="@+id/dateText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:gravity="center"
+        android:text="2024年1月1日"
+        android:textColor="#FF6B6B"
+        android:textSize="20sp"
+        android:textStyle="bold" />
+
+    <!-- 选择时间按钮 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="选择时间"
+        android:textColor="#666"
+        android:textSize="16sp" />
+
+    <Button
+        android:id="@+id/selectTimeButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:background="@drawable/button_time"
+        android:text="08:00"
+        android:textColor="#333"
+        android:textSize="32sp"
+        android:padding="20dp" />
+
+    <!-- 标签输入 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="8dp"
+        android:text="闹钟标签"
+        android:textColor="#666"
+        android:textSize="16sp" />
+
+    <EditText
+        android:id="@+id/labelEdit"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="32dp"
+        android:background="@android:color/white"
+        android:hint="例如：开会、吃药、起床..."
+        android:padding="16dp"
+        android:textSize="16sp" />
+
+    <!-- 保存按钮 -->
+    <Button
+        android:id="@+id/saveButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:background="@drawable/button_primary"
+        android:text="✅ 保存闹钟"
+        android:textColor="@android:color/white"
+        android:textSize="18sp"
+        android:padding="16dp" />
+
+    <!-- 取消按钮 -->
+    <Button
+        android:id="@+id/cancelButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/button_cancel"
+        android:text="❌ 取消"
+        android:textColor="#666"
+        android:textSize="18sp"
+        android:padding="16dp" />
+
+</LinearLayout>
