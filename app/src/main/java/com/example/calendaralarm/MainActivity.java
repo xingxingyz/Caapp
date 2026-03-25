@@ -121,21 +121,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setSystemAlarm(int hour, int minute, String label) {
-        // 使用系统闹钟 API（最可靠的方式）
+        // 计算闹钟时间（包含正确日期）
+        Calendar alarmCal = (Calendar) selectedCalendar.clone();
+        alarmCal.set(Calendar.HOUR_OF_DAY, hour);
+        alarmCal.set(Calendar.MINUTE, minute);
+        alarmCal.set(Calendar.SECOND, 0);
+        
+        // 如果设置的时间已过，提醒用户
+        if (alarmCal.getTimeInMillis() < System.currentTimeMillis()) {
+            Toast.makeText(this, "选择的时间已过，请重新选择", Toast.LENGTH_LONG).show();
+            return;
+        }
+        
+        // 使用系统闹钟 API，传入具体日期
         Intent alarmIntent = new Intent(AlarmClock.ACTION_SET_ALARM);
         alarmIntent.putExtra(AlarmClock.EXTRA_HOUR, hour);
         alarmIntent.putExtra(AlarmClock.EXTRA_MINUTES, minute);
         alarmIntent.putExtra(AlarmClock.EXTRA_MESSAGE, label);
-        alarmIntent.putExtra(AlarmClock.EXTRA_SKIP_UI, false); // 显示系统闹钟界面
+        alarmIntent.putExtra(AlarmClock.EXTRA_SKIP_UI, false);
+        
+        // 关键：设置具体日期（月/日/年）
+        alarmIntent.putExtra("android.intent.extra.alarm.MONTH", alarmCal.get(Calendar.MONTH));
+        alarmIntent.putExtra("android.intent.extra.alarm.DAY", alarmCal.get(Calendar.DAY_OF_MONTH));
+        alarmIntent.putExtra("android.intent.extra.alarm.YEAR", alarmCal.get(Calendar.YEAR));
         
         if (alarmIntent.resolveActivity(getPackageManager()) != null) {
             startActivity(alarmIntent);
             
-            // 保存到列表
-            Calendar alarmCal = (Calendar) selectedCalendar.clone();
-            alarmCal.set(Calendar.HOUR_OF_DAY, hour);
-            alarmCal.set(Calendar.MINUTE, minute);
-            
+            // 保存到列表（使用已创建的 alarmCal）
             AlarmItem alarm = new AlarmItem(alarmCal.getTimeInMillis(), label);
             alarmList.add(alarm);
             alarmList.sort((a, b) -> Long.compare(a.getTimeInMillis(), b.getTimeInMillis()));
