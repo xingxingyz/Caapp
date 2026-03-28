@@ -21,11 +21,21 @@ public class AlarmReceiver extends BroadcastReceiver {
     private static final String WAKE_LOCK_TAG = "AlarmReceiver::WakeLock";
     private static final int NOTIFICATION_ID = 1001;
     
+    private static final String ACTION_STOP_ALARM = "com.example.calendaralarm.STOP_ALARM";
+    
     private static Ringtone currentRingtone;
     private static Vibrator currentVibrator;
 
     @Override
     public void onReceive(Context context, Intent intent) {
+        // 检查是否是停止响铃的操作
+        if (ACTION_STOP_ALARM.equals(intent.getAction())) {
+            stopAll();
+            NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+            notificationManager.cancel(NOTIFICATION_ID);
+            return;
+        }
+        
         PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         PowerManager.WakeLock wakeLock = null;
         if (powerManager != null) {
@@ -41,19 +51,24 @@ public class AlarmReceiver extends BroadcastReceiver {
         String label = intent.getStringExtra("label");
         if (label == null) label = "闹钟";
 
-        // 播放铃声和震动（只在闹钟触发时执行）
+        // 播放铃声和震动
         startAlarmSound(context);
         startVibrate(context);
         
-        // 显示通知（不设置全屏Intent，避免点击通知时重复触发）
-        showNotification(context, label);
+        // 显示通知（带停止按钮）
+        showNotificationWithActions(context, label);
         
-        // 直接启动响铃界面
-        Intent alertIntent = new Intent(context, AlarmAlertActivity.class);
-        alertIntent.putExtra("label", label);
-        alertIntent.putExtra("from_alarm", true);  // 标记是从闹钟触发过来的
-        alertIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
-        context.startActivity(alertIntent);
+        // 尝试启动响铃界面（如果允许的话）
+        try {
+            Intent alertIntent = new Intent(context, AlarmAlertActivity.class);
+            alertIntent.putExtra("label", label);
+            alertIntent.putExtra("from_alarm", true);
+            alertIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            context.startActivity(alertIntent);
+        } catch (Exception e) {
+            e.printStackTrace();
+            // 如果无法启动界面，至少通知还在响，用户可以在通知栏停止
+        }
 
         if (wakeLock != null) {
             final PowerManager.WakeLock finalWakeLock = wakeLock;
@@ -114,7 +129,7 @@ public class AlarmReceiver extends BroadcastReceiver {
         stopVibrate();
     }
 
-    private void showNotification(Context context, String label) {
+    private void showNotificationWithActions(Context context, String label) {
         NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -129,28 +144,36 @@ public class AlarmReceiver extends BroadcastReceiver {
             notificationManager.createNotificationChannel(channel);
         }
 
-        // 点击通知只打开界面，不响铃
-        Intent alertIntent = new Intent(context, AlarmAlertActivity.class);
-        alertIntent.putExtra("label", label);
-        alertIntent.putExtra("from_notification", true);  // 标记是从通知点击过来的
-        alertIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        // 点击通知打开界面
+        Intent openIntent = new Intent(context, AlarmAlertActivity.class);
+        openIntent.putExtra("label", label);
+        openIntent.putExtra("from_notification", true);
+        openIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        PendingIntent openPendingIntent = PendingIntent.getActivity(
+                context, 0, openIntent, 
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+        );
         
-        PendingIntent pendingIntent = PendingIntent.getActivity(
-                context, 0, alertIntent, 
+        // 停止响铃的广播
+        Intent stopIntent = new Intent(context, AlarmReceiver.class);
+        stopIntent.setAction(ACTION_STOP_ALARM);
+        PendingIntent stopPendingIntent = PendingIntent.getBroadcast(
+                context, 0, stopIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
 
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
                 .setContentTitle(label)
-                .setContentText("闹钟响了！点击查看")
+                .setContentText("闹钟响了！")
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
-                .setAutoCancel(true)
-                .setContentIntent(pendingIntent)
-                // 注意：不使用 setFullScreenIntent，避免系统重复触发
+                .setAutoCancel(false)
+                .setContentIntent(openPendingIntent)
                 .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setOngoing(true);
+                .setOngoing(true)
+                // 添加停止按钮
+                .addAction(android.R.drawable.ic_media_pause, "停止响铃", stopPendingIntent);
 
         notificationManager.notify(NOTIFICATION_ID, builder.build());
     }

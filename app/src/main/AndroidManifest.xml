@@ -77,7 +77,11 @@
         <receiver
             android:name=".AlarmReceiver"
             android:enabled="true"
-            android:exported="false" />
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.calendaralarm.STOP_ALARM" />
+            </intent-filter>
+        </receiver>
         
         <!-- 前台服务 -->
         <service
