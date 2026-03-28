@@ -3,9 +3,11 @@ package com.example.calendaralarm;
 import android.app.KeyguardManager;
 import android.app.NotificationManager;
 import android.content.Context;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
+import android.provider.Settings;
 import android.view.View;
 import android.view.WindowManager;
 import android.widget.Button;
@@ -66,6 +68,23 @@ public class AlarmAlertActivity extends AppCompatActivity {
             setShowWhenLocked(true);
             setTurnScreenOn(true);
         }
+        
+        WindowManager.LayoutParams params = getWindow().getAttributes();
+        
+        // 添加悬浮窗类型，支持后台弹出（Android 8+）
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            // 检查是否有悬浮窗权限
+            if (Settings.canDrawOverlays(this)) {
+                params.type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
+            }
+        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (Settings.canDrawOverlays(this)) {
+                params.type = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
+            }
+        }
+        
+        getWindow().setAttributes(params);
+        
         getWindow().addFlags(
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |

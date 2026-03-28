@@ -275,6 +275,9 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         
+        // 检查悬浮窗权限（后台弹窗必需）
+        checkOverlayPermission();
+        
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             // Android 12+ 需要 SCHEDULE_EXACT_ALARM 权限
             AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
@@ -295,6 +298,24 @@ public class MainActivity extends AppCompatActivity {
         
         // 检查电池优化（关键！）
         checkBatteryOptimization();
+    }
+    
+    private void checkOverlayPermission() {
+        // Android 6+ 需要悬浮窗权限才能后台弹窗
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            if (!Settings.canDrawOverlays(this)) {
+                new AlertDialog.Builder(this)
+                    .setTitle("需要悬浮窗权限")
+                    .setMessage("为保证闹钟在后台也能弹出提醒界面，请开启'悬浮窗'权限")
+                    .setPositiveButton("去开启", (dialog, which) -> {
+                        Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                            Uri.parse("package:" + getPackageName()));
+                        startActivity(intent);
+                    })
+                    .setNegativeButton("稍后", null)
+                    .show();
+            }
+        }
     }
     
     private void checkBatteryOptimization() {
