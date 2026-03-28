@@ -22,17 +22,19 @@ public class AlarmReceiver extends BroadcastReceiver {
     public void onReceive(Context context, Intent intent) {
         // 获取唤醒锁，确保设备唤醒 - 使用 ACQUIRE_CAUSES_WAKEUP 点亮屏幕
         PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-        PowerManager.WakeLock wakeLock = null;
+        
+        // 使用数组包装，以便在 Lambda 中使用
+        final PowerManager.WakeLock[] wakeLockHolder = new PowerManager.WakeLock[1];
         
         if (powerManager != null) {
             // 使用 SCREEN_BRIGHT_WAKE_LOCK + ACQUIRE_CAUSES_WAKEUP 来点亮屏幕
-            wakeLock = powerManager.newWakeLock(
+            wakeLockHolder[0] = powerManager.newWakeLock(
                 PowerManager.SCREEN_BRIGHT_WAKE_LOCK |
                 PowerManager.ACQUIRE_CAUSES_WAKEUP |
                 PowerManager.ON_AFTER_RELEASE,
                 WAKE_LOCK_TAG
             );
-            wakeLock.acquire(60 * 1000L); // 保持唤醒60秒
+            wakeLockHolder[0].acquire(60 * 1000L); // 保持唤醒60秒
         }
         
         try {
@@ -50,8 +52,8 @@ public class AlarmReceiver extends BroadcastReceiver {
         } finally {
             // 延迟释放唤醒锁
             new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                if (wakeLock != null && wakeLock.isHeld()) {
-                    wakeLock.release();
+                if (wakeLockHolder[0] != null && wakeLockHolder[0].isHeld()) {
+                    wakeLockHolder[0].release();
                 }
             }, 55 * 1000);
         }
