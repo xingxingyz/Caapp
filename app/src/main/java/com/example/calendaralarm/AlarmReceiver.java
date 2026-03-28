@@ -13,11 +13,9 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
 import android.os.Vibrator;
-
 import androidx.core.app.NotificationCompat;
 
 public class AlarmReceiver extends BroadcastReceiver {
-    
     private static final String CHANNEL_ID = "alarm_channel";
     private static final String CHANNEL_NAME = "闹钟提醒";
     private static final String WAKE_LOCK_TAG = "AlarmReceiver::WakeLock";
@@ -32,21 +30,31 @@ public class AlarmReceiver extends BroadcastReceiver {
         PowerManager.WakeLock wakeLock = null;
         if (powerManager != null) {
             wakeLock = powerManager.newWakeLock(
-                PowerManager.SCREEN_BRIGHT_WAKE_LOCK |
-                PowerManager.ACQUIRE_CAUSES_WAKEUP |
-                PowerManager.ON_AFTER_RELEASE,
-                WAKE_LOCK_TAG
+                    PowerManager.SCREEN_BRIGHT_WAKE_LOCK |
+                    PowerManager.ACQUIRE_CAUSES_WAKEUP |
+                    PowerManager.ON_AFTER_RELEASE,
+                    WAKE_LOCK_TAG
             );
             wakeLock.acquire(60 * 1000L);
         }
-        
+
         String label = intent.getStringExtra("label");
         if (label == null) label = "闹钟";
-        
+
+        // 播放铃声和震动（只在闹钟触发时执行）
         startAlarmSound(context);
         startVibrate(context);
-        showFullScreenNotification(context, label);
         
+        // 显示通知（不设置全屏Intent，避免点击通知时重复触发）
+        showNotification(context, label);
+        
+        // 直接启动响铃界面
+        Intent alertIntent = new Intent(context, AlarmAlertActivity.class);
+        alertIntent.putExtra("label", label);
+        alertIntent.putExtra("from_alarm", true);  // 标记是从闹钟触发过来的
+        alertIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        context.startActivity(alertIntent);
+
         if (wakeLock != null) {
             final PowerManager.WakeLock finalWakeLock = wakeLock;
             android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
@@ -57,7 +65,7 @@ public class AlarmReceiver extends BroadcastReceiver {
             }, 55 * 1000);
         }
     }
-    
+
     private void startAlarmSound(Context context) {
         try {
             stopAlarmSound();
@@ -73,7 +81,7 @@ public class AlarmReceiver extends BroadcastReceiver {
             e.printStackTrace();
         }
     }
-    
+
     private void startVibrate(Context context) {
         try {
             stopVibrate();
@@ -86,65 +94,64 @@ public class AlarmReceiver extends BroadcastReceiver {
             e.printStackTrace();
         }
     }
-    
+
     public static void stopAlarmSound() {
         if (currentRingtone != null && currentRingtone.isPlaying()) {
             currentRingtone.stop();
         }
         currentRingtone = null;
     }
-    
+
     public static void stopVibrate() {
         if (currentVibrator != null) {
             currentVibrator.cancel();
         }
         currentVibrator = null;
     }
-    
+
     public static void stopAll() {
         stopAlarmSound();
         stopVibrate();
     }
-    
-    private void showFullScreenNotification(Context context, String label) {
-        NotificationManager notificationManager = 
-            (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
+
+    private void showNotification(Context context, String label) {
+        NotificationManager notificationManager = (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
-                CHANNEL_ID,
-                CHANNEL_NAME,
-                NotificationManager.IMPORTANCE_HIGH
+                    CHANNEL_ID,
+                    CHANNEL_NAME,
+                    NotificationManager.IMPORTANCE_HIGH
             );
             channel.setDescription("日历闹钟提醒");
             channel.setBypassDnd(true);
             channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             notificationManager.createNotificationChannel(channel);
         }
-        
-        // 点击通知停止响铃并打开界面
+
+        // 点击通知只打开界面，不响铃
         Intent alertIntent = new Intent(context, AlarmAlertActivity.class);
         alertIntent.putExtra("label", label);
-        alertIntent.putExtra("stop_alarm", true);
+        alertIntent.putExtra("from_notification", true);  // 标记是从通知点击过来的
         alertIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
         
         PendingIntent pendingIntent = PendingIntent.getActivity(
-            context, 0, alertIntent, 
-            PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+                context, 0, alertIntent, 
+                PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
-        
+
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle(label)
-            .setContentText("闹钟响了！点击停止")
-            .setPriority(NotificationCompat.PRIORITY_MAX)
-            .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setAutoCancel(true)
-            .setContentIntent(pendingIntent)
-            .setFullScreenIntent(pendingIntent, true)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .setOngoing(true);
-        
+                .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+                .setContentTitle(label)
+                .setContentText("闹钟响了！点击查看")
+                .setPriority(NotificationCompat.PRIORITY_MAX)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setAutoCancel(true)
+                .setContentIntent(pendingIntent)
+                // 注意：不使用 setFullScreenIntent，避免系统重复触发
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setOngoing(true);
+
         notificationManager.notify(NOTIFICATION_ID, builder.build());
     }
 }
