@@ -18,7 +18,7 @@ import androidx.core.app.NotificationCompat;
 public class AlarmKeepAliveService extends Service {
     
     private static final String CHANNEL_ID = "keep_alive_channel";
-    private static final int NOTIFICATION_ID = 1001;
+    private static final int NOTIFICATION_ID = 2001;
     
     @Override
     public void onCreate() {

@@ -7,8 +7,12 @@ import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
+import android.media.Ringtone;
+import android.media.RingtoneManager;
+import android.net.Uri;
 import android.os.Build;
 import android.os.PowerManager;
+import android.os.Vibrator;
 
 import androidx.core.app.NotificationCompat;
 
@@ -17,97 +21,95 @@ public class AlarmReceiver extends BroadcastReceiver {
     private static final String CHANNEL_ID = "alarm_channel";
     private static final String CHANNEL_NAME = "闹钟提醒";
     private static final String WAKE_LOCK_TAG = "AlarmReceiver::WakeLock";
+    private static final int NOTIFICATION_ID = 1001;
+    
+    private static Ringtone currentRingtone;
+    private static Vibrator currentVibrator;
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        // 获取唤醒锁，确保设备唤醒 - 使用 ACQUIRE_CAUSES_WAKEUP 点亮屏幕
         PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
-        
         PowerManager.WakeLock wakeLock = null;
         if (powerManager != null) {
-            // 使用 SCREEN_BRIGHT_WAKE_LOCK + ACQUIRE_CAUSES_WAKEUP 来点亮屏幕
             wakeLock = powerManager.newWakeLock(
                 PowerManager.SCREEN_BRIGHT_WAKE_LOCK |
                 PowerManager.ACQUIRE_CAUSES_WAKEUP |
                 PowerManager.ON_AFTER_RELEASE,
                 WAKE_LOCK_TAG
             );
-            wakeLock.acquire(60 * 1000L); // 保持唤醒60秒
+            wakeLock.acquire(60 * 1000L);
         }
         
-        final String label = intent.getStringExtra("label") != null 
-            ? intent.getStringExtra("label") 
-            : "闹钟";
+        String label = intent.getStringExtra("label");
+        if (label == null) label = "闹钟";
         
-        // 先显示全屏通知（Android 10+ 推荐方式）
+        startAlarmSound(context);
+        startVibrate(context);
         showFullScreenNotification(context, label);
         
-        // 延迟启动 Activity（确保屏幕已唤醒）
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-            startAlarmActivity(context, label);
-        }, 500);
-        
-        // 延迟释放唤醒锁 - 使用类成员变量保存引用
-        scheduleWakeLockRelease(wakeLock);
-    }
-    
-    private void scheduleWakeLockRelease(final PowerManager.WakeLock wakeLock) {
-        if (wakeLock == null) return;
-        
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
-            @Override
-            public void run() {
-                if (wakeLock.isHeld()) {
-                    wakeLock.release();
+        if (wakeLock != null) {
+            final PowerManager.WakeLock finalWakeLock = wakeLock;
+            android.os.Handler handler = new android.os.Handler(android.os.Looper.getMainLooper());
+            handler.postDelayed(new Runnable() {
+                public void run() {
+                    if (finalWakeLock.isHeld()) finalWakeLock.release();
                 }
-            }
-        }, 55 * 1000);
+            }, 55 * 1000);
+        }
     }
     
-    private void startAlarmActivity(Context context, String label) {
-        // 启动全屏闹钟界面
-        Intent alertIntent = new Intent(context, AlarmAlertActivity.class);
-        alertIntent.putExtra("label", label);
-        
-        // 关键标志组合，确保在任何状态下都能启动
-        alertIntent.setFlags(
-            Intent.FLAG_ACTIVITY_NEW_TASK |
-            Intent.FLAG_ACTIVITY_CLEAR_TOP |
-            Intent.FLAG_ACTIVITY_CLEAR_TASK |
-            Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS |
-            Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT |
-            Intent.FLAG_FROM_BACKGROUND
-        );
-        
-        // Android 8.0+ 添加额外标志
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            alertIntent.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
-        }
-        
-        // Android 10+ 添加
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            alertIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-        }
-        
+    private void startAlarmSound(Context context) {
         try {
-            // 检查是否在后台限制状态
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                // Android 9+ 需要确保我们能启动 Activity
-                context.startActivity(alertIntent);
-            } else {
-                context.startActivity(alertIntent);
+            stopAlarmSound();
+            Uri alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+            if (alarmUri == null) {
+                alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
+            }
+            currentRingtone = RingtoneManager.getRingtone(context, alarmUri);
+            if (currentRingtone != null) {
+                currentRingtone.play();
             }
         } catch (Exception e) {
             e.printStackTrace();
-            // 如果启动失败，至少确保通知还在响
         }
+    }
+    
+    private void startVibrate(Context context) {
+        try {
+            stopVibrate();
+            currentVibrator = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
+            if (currentVibrator != null && currentVibrator.hasVibrator()) {
+                long[] pattern = {0, 500, 500, 500, 500, 500};
+                currentVibrator.vibrate(pattern, 0);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    
+    public static void stopAlarmSound() {
+        if (currentRingtone != null && currentRingtone.isPlaying()) {
+            currentRingtone.stop();
+        }
+        currentRingtone = null;
+    }
+    
+    public static void stopVibrate() {
+        if (currentVibrator != null) {
+            currentVibrator.cancel();
+        }
+        currentVibrator = null;
+    }
+    
+    public static void stopAll() {
+        stopAlarmSound();
+        stopVibrate();
     }
     
     private void showFullScreenNotification(Context context, String label) {
         NotificationManager notificationManager = 
             (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
         
-        // 创建高优先级通知渠道
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
                 CHANNEL_ID,
@@ -115,34 +117,34 @@ public class AlarmReceiver extends BroadcastReceiver {
                 NotificationManager.IMPORTANCE_HIGH
             );
             channel.setDescription("日历闹钟提醒");
-            channel.setBypassDnd(true); // 绕过勿扰模式
-            channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC); // 锁屏显示
+            channel.setBypassDnd(true);
+            channel.setLockscreenVisibility(Notification.VISIBILITY_PUBLIC);
             notificationManager.createNotificationChannel(channel);
         }
         
-        // 创建打开全屏界面的 Intent
+        // 点击通知停止响铃并打开界面
         Intent alertIntent = new Intent(context, AlarmAlertActivity.class);
         alertIntent.putExtra("label", label);
+        alertIntent.putExtra("stop_alarm", true);
+        alertIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+        
         PendingIntent pendingIntent = PendingIntent.getActivity(
             context, 0, alertIntent, 
             PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
         );
         
-        // 构建通知 - 使用全屏意图
         NotificationCompat.Builder builder = new NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
             .setContentTitle(label)
-            .setContentText("闹钟响了！点击查看")
+            .setContentText("闹钟响了！点击停止")
             .setPriority(NotificationCompat.PRIORITY_MAX)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
-            .setFullScreenIntent(pendingIntent, true) // 关键：全屏意图
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC) // 锁屏可见
-            .setOngoing(true); // 持续显示
+            .setFullScreenIntent(pendingIntent, true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setOngoing(true);
         
-        // 显示通知
-        int notificationId = (int) System.currentTimeMillis();
-        notificationManager.notify(notificationId, builder.build());
+        notificationManager.notify(NOTIFICATION_ID, builder.build());
     }
 }
