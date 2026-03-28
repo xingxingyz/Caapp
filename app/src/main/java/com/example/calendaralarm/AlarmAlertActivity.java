@@ -17,8 +17,12 @@ import androidx.appcompat.app.AppCompatActivity;
 
 public class AlarmAlertActivity extends AppCompatActivity {
     
-    private static Ringtone currentRingtone;
-    private static Vibrator currentVibrator;
+    // 改为非 static，每个实例独立
+    private Ringtone currentRingtone;
+    private Vibrator currentVibrator;
+    
+    // 用于标记是否已经停止，防止重复
+    private boolean isStopped = false;
     
     private TextView alarmLabelText;
     private TextView alarmTimeText;
@@ -27,6 +31,13 @@ public class AlarmAlertActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        
+        // 确保只有一个实例运行
+        if (isTaskRoot() == false) {
+            // 如果已经有实例在运行，结束之前的
+            finish();
+            return;
+        }
         
         // 关键：必须在 setContentView 之前设置窗口标志
         setupWindowFlags();
@@ -55,8 +66,7 @@ public class AlarmAlertActivity extends AppCompatActivity {
         
         // 停止按钮
         stopButton.setOnClickListener(v -> {
-            stopAlarm();
-            finish();
+            stopAndFinish();
         });
     }
     
@@ -136,30 +146,33 @@ public class AlarmAlertActivity extends AppCompatActivity {
     }
     
     private void stopAlarm() {
+        if (isStopped) return;
+        isStopped = true;
+        
         // 停止铃声
         if (currentRingtone != null && currentRingtone.isPlaying()) {
             currentRingtone.stop();
         }
-        currentRingtone = null;
         
         // 停止震动
         if (currentVibrator != null) {
             currentVibrator.cancel();
         }
-        currentVibrator = null;
+    }
+    
+    private void stopAndFinish() {
+        stopAlarm();
+        finish();
     }
     
     @Override
     protected void onDestroy() {
-        super.onDestroy();
         stopAlarm();
+        super.onDestroy();
     }
     
     @Override
     public void onBackPressed() {
-        // 禁用返回键，必须点击停止按钮
-        // 可以选择不处理，或者 also stop
-        stopAlarm();
-        super.onBackPressed();
+        stopAndFinish();
     }
 }

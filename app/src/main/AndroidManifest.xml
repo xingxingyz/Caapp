@@ -57,14 +57,21 @@
         <!-- 闹钟响铃界面 -->
         <activity
             android:name=".AlarmAlertActivity"
-            android:configChanges="orientation|keyboardHidden|screenSize"
+            android:allowEmbedded="false"
+            android:configChanges="orientation|keyboardHidden|screenSize|smallestScreenSize"
+            android:documentLaunchMode="never"
             android:excludeFromRecents="true"
             android:exported="false"
+            android:finishOnTaskLaunch="false"
             android:launchMode="singleInstance"
+            android:noHistory="true"
+            android:resizeableActivity="false"
+            android:showForAllUsers="true"
             android:showOnLockScreen="true"
             android:showWhenLocked="true"
             android:taskAffinity=""
-            android:turnScreenOn="true" />
+            android:turnScreenOn="true"
+            android:windowSoftInputMode="stateAlwaysHidden" />
         
         <!-- 闹钟广播接收器 -->
         <receiver

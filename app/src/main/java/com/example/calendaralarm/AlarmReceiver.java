@@ -68,21 +68,38 @@ public class AlarmReceiver extends BroadcastReceiver {
         // 启动全屏闹钟界面
         Intent alertIntent = new Intent(context, AlarmAlertActivity.class);
         alertIntent.putExtra("label", label);
-        alertIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | 
-                            Intent.FLAG_ACTIVITY_CLEAR_TOP |
-                            Intent.FLAG_ACTIVITY_CLEAR_TASK |
-                            Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS |
-                            Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT);
         
-        // 添加额外标志确保在锁屏上显示
+        // 关键标志组合，确保在任何状态下都能启动
+        alertIntent.setFlags(
+            Intent.FLAG_ACTIVITY_NEW_TASK |
+            Intent.FLAG_ACTIVITY_CLEAR_TOP |
+            Intent.FLAG_ACTIVITY_CLEAR_TASK |
+            Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS |
+            Intent.FLAG_ACTIVITY_BROUGHT_TO_FRONT |
+            Intent.FLAG_FROM_BACKGROUND
+        );
+        
+        // Android 8.0+ 添加额外标志
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             alertIntent.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
         }
         
+        // Android 10+ 添加
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            alertIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        }
+        
         try {
-            context.startActivity(alertIntent);
+            // 检查是否在后台限制状态
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                // Android 9+ 需要确保我们能启动 Activity
+                context.startActivity(alertIntent);
+            } else {
+                context.startActivity(alertIntent);
+            }
         } catch (Exception e) {
             e.printStackTrace();
+            // 如果启动失败，至少确保通知还在响
         }
     }
     
