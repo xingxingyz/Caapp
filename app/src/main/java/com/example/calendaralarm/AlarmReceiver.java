@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Build;
+import android.os.PowerManager;
 
 import androidx.core.app.NotificationCompat;
 
@@ -14,22 +15,52 @@ public class AlarmReceiver extends BroadcastReceiver {
     
     private static final String CHANNEL_ID = "alarm_channel";
     private static final String CHANNEL_NAME = "闹钟提醒";
+    private static final String WAKE_LOCK_TAG = "AlarmReceiver::WakeLock";
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        String label = intent.getStringExtra("label");
-        if (label == null) label = "闹钟";
+        // 获取唤醒锁，确保设备唤醒
+        PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
+        PowerManager.WakeLock wakeLock = null;
         
-        // 启动全屏闹钟界面
-        Intent alertIntent = new Intent(context, AlarmAlertActivity.class);
-        alertIntent.putExtra("label", label);
-        alertIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | 
-                            Intent.FLAG_ACTIVITY_CLEAR_TOP |
-                            Intent.FLAG_ACTIVITY_CLEAR_TASK);
-        context.startActivity(alertIntent);
+        if (powerManager != null) {
+            wakeLock = powerManager.newWakeLock(
+                PowerManager.PARTIAL_WAKE_LOCK |
+                PowerManager.ACQUIRE_CAUSES_WAKEUP |
+                PowerManager.ON_AFTER_RELEASE,
+                WAKE_LOCK_TAG
+            );
+            wakeLock.acquire(10 * 60 * 1000L); // 保持唤醒10分钟
+        }
         
-        // 同时显示通知（作为备用）
-        showNotification(context, label);
+        try {
+            String label = intent.getStringExtra("label");
+            if (label == null) label = "闹钟";
+            
+            // 启动全屏闹钟界面
+            Intent alertIntent = new Intent(context, AlarmAlertActivity.class);
+            alertIntent.putExtra("label", label);
+            alertIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | 
+                                Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                                Intent.FLAG_ACTIVITY_CLEAR_TASK |
+                                Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS);
+            
+            // 添加额外标志确保在锁屏上显示
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                alertIntent.addFlags(Intent.FLAG_ACTIVITY_LAUNCH_ADJACENT);
+            }
+            
+            context.startActivity(alertIntent);
+            
+            // 同时显示通知（作为备用）
+            showNotification(context, label);
+            
+        } finally {
+            // 释放唤醒锁
+            if (wakeLock != null && wakeLock.isHeld()) {
+                wakeLock.release();
+            }
+        }
     }
     
     private void showNotification(Context context, String label) {

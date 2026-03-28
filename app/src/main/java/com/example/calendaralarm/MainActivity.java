@@ -52,6 +52,18 @@ public class MainActivity extends AppCompatActivity {
         initCalendar();
         initAlarmList();
         checkPermissions();
+        
+        // 启动前台服务保持后台运行
+        startKeepAliveService();
+    }
+    
+    private void startKeepAliveService() {
+        Intent serviceIntent = new Intent(this, AlarmKeepAliveService.class);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            startForegroundService(serviceIntent);
+        } else {
+            startService(serviceIntent);
+        }
     }
 
     private void initViews() {
@@ -159,11 +171,17 @@ public class MainActivity extends AppCompatActivity {
                     pendingIntent
                 );
             } else {
-                // 引导用户去设置页面开启权限
-                Toast.makeText(this, "请开启'允许设置精确闹钟'权限", Toast.LENGTH_LONG).show();
-                Intent permIntent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
-                permIntent.setData(android.net.Uri.parse("package:" + getPackageName()));
-                startActivity(permIntent);
+                // 引导用户去系统设置页面开启权限
+                new AlertDialog.Builder(this)
+                    .setTitle("需要开启闹钟权限")
+                    .setMessage("请在新页面中找到'日历闹钟'并开启'闹钟和提醒'权限")
+                    .setPositiveButton("去开启", (dialog, which) -> {
+                        Intent permIntent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                        permIntent.setData(Uri.parse("package:" + getPackageName()));
+                        startActivity(permIntent);
+                    })
+                    .setNegativeButton("取消", null)
+                    .show();
                 return;
             }
         } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
@@ -261,7 +279,17 @@ public class MainActivity extends AppCompatActivity {
             // Android 12+ 需要 SCHEDULE_EXACT_ALARM 权限
             AlarmManager alarmManager = (AlarmManager) getSystemService(Context.ALARM_SERVICE);
             if (!alarmManager.canScheduleExactAlarms()) {
-                Toast.makeText(this, "请允许设置精确闹钟", Toast.LENGTH_LONG).show();
+                // 引导用户去系统设置页面开启权限
+                new AlertDialog.Builder(this)
+                    .setTitle("需要开启闹钟权限")
+                    .setMessage("Android 12+ 需要单独授权'闹钟和提醒'权限\n\n请在新页面中找到'日历闹钟'并开启权限")
+                    .setPositiveButton("去开启", (dialog, which) -> {
+                        Intent intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM);
+                        intent.setData(Uri.parse("package:" + getPackageName()));
+                        startActivity(intent);
+                    })
+                    .setCancelable(false)
+                    .show();
             }
         }
         
