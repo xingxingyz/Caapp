@@ -63,7 +63,13 @@ public class AlarmReceiver extends BroadcastReceiver {
             Intent alertIntent = new Intent(context, AlarmAlertActivity.class);
             alertIntent.putExtra("label", label);
             alertIntent.putExtra("from_alarm", true);
-            alertIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
+            // 关键标志：确保在锁屏上显示
+            alertIntent.setFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK |
+                Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS |
+                Intent.FLAG_ACTIVITY_NO_USER_ACTION
+            );
             context.startActivity(alertIntent);
         } catch (Exception e) {
             e.printStackTrace();

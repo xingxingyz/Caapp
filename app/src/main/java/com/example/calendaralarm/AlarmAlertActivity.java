@@ -71,13 +71,9 @@ public class AlarmAlertActivity extends AppCompatActivity {
         
         WindowManager.LayoutParams params = getWindow().getAttributes();
         
-        // 添加悬浮窗类型，支持后台弹出（Android 8+）
+        // 锁屏显示需要特定的窗口类型
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            // 检查是否有悬浮窗权限
-            if (Settings.canDrawOverlays(this)) {
-                params.type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY;
-            }
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            // Android 8+ 使用 SYSTEM_ALERT 类型支持在锁屏上显示
             if (Settings.canDrawOverlays(this)) {
                 params.type = WindowManager.LayoutParams.TYPE_SYSTEM_ALERT;
             }
@@ -85,11 +81,13 @@ public class AlarmAlertActivity extends AppCompatActivity {
         
         getWindow().setAttributes(params);
         
+        // 关键：添加 FLAG_DISMISS_KEYGUARD 确保能显示在锁屏上
         getWindow().addFlags(
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
-                WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
+                WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON |
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
         );
     }
 
