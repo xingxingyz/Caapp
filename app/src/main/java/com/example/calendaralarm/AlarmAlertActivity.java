@@ -81,12 +81,13 @@ public class AlarmAlertActivity extends AppCompatActivity {
         
         getWindow().setAttributes(params);
         
-        // 锁屏显示标志（不移除键盘锁，保持安全）
+        // 锁屏显示标志，允许不解锁直接操作（系统闹钟标准行为）
         getWindow().addFlags(
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
                 WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
                 WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
-                WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
+                WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON |
+                WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD
         );
     }
 
