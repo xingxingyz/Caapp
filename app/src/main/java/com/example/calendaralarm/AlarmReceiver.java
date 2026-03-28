@@ -23,40 +23,45 @@ public class AlarmReceiver extends BroadcastReceiver {
         // 获取唤醒锁，确保设备唤醒 - 使用 ACQUIRE_CAUSES_WAKEUP 点亮屏幕
         PowerManager powerManager = (PowerManager) context.getSystemService(Context.POWER_SERVICE);
         
-        // 使用数组包装，以便在 Lambda 中使用
-        final PowerManager.WakeLock[] wakeLockHolder = new PowerManager.WakeLock[1];
-        
+        PowerManager.WakeLock wakeLock = null;
         if (powerManager != null) {
             // 使用 SCREEN_BRIGHT_WAKE_LOCK + ACQUIRE_CAUSES_WAKEUP 来点亮屏幕
-            wakeLockHolder[0] = powerManager.newWakeLock(
+            wakeLock = powerManager.newWakeLock(
                 PowerManager.SCREEN_BRIGHT_WAKE_LOCK |
                 PowerManager.ACQUIRE_CAUSES_WAKEUP |
                 PowerManager.ON_AFTER_RELEASE,
                 WAKE_LOCK_TAG
             );
-            wakeLockHolder[0].acquire(60 * 1000L); // 保持唤醒60秒
+            wakeLock.acquire(60 * 1000L); // 保持唤醒60秒
         }
         
-        try {
-            String label = intent.getStringExtra("label");
-            if (label == null) label = "闹钟";
-            
-            // 先显示全屏通知（Android 10+ 推荐方式）
-            showFullScreenNotification(context, label);
-            
-            // 延迟启动 Activity（确保屏幕已唤醒）
-            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                startAlarmActivity(context, label);
-            }, 500);
-            
-        } finally {
-            // 延迟释放唤醒锁
-            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-                if (wakeLockHolder[0] != null && wakeLockHolder[0].isHeld()) {
-                    wakeLockHolder[0].release();
+        final String label = intent.getStringExtra("label") != null 
+            ? intent.getStringExtra("label") 
+            : "闹钟";
+        
+        // 先显示全屏通知（Android 10+ 推荐方式）
+        showFullScreenNotification(context, label);
+        
+        // 延迟启动 Activity（确保屏幕已唤醒）
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            startAlarmActivity(context, label);
+        }, 500);
+        
+        // 延迟释放唤醒锁 - 使用类成员变量保存引用
+        scheduleWakeLockRelease(wakeLock);
+    }
+    
+    private void scheduleWakeLockRelease(final PowerManager.WakeLock wakeLock) {
+        if (wakeLock == null) return;
+        
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(new Runnable() {
+            @Override
+            public void run() {
+                if (wakeLock.isHeld()) {
+                    wakeLock.release();
                 }
-            }, 55 * 1000);
-        }
+            }
+        }, 55 * 1000);
     }
     
     private void startAlarmActivity(Context context, String label) {
