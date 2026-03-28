@@ -17,6 +17,9 @@
     <!-- 唤醒屏幕权限 -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     
+    <!-- 禁用键盘锁权限 -->
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    
     <!-- 请求忽略电池优化 -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     
@@ -25,6 +28,9 @@
     
     <!-- 前台服务类型（Android 10+）-->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    
+    <!-- 全屏通知权限（Android 10+）-->
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
         android:allowBackup="true"
@@ -51,10 +57,13 @@
         <!-- 闹钟响铃界面 -->
         <activity
             android:name=".AlarmAlertActivity"
+            android:configChanges="orientation|keyboardHidden|screenSize"
             android:excludeFromRecents="true"
             android:exported="false"
+            android:launchMode="singleInstance"
             android:showOnLockScreen="true"
             android:showWhenLocked="true"
+            android:taskAffinity=""
             android:turnScreenOn="true" />
         
         <!-- 闹钟广播接收器 -->

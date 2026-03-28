@@ -28,17 +28,8 @@ public class AlarmAlertActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // 全屏显示，锁屏也能显示
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
-            setShowWhenLocked(true);
-            setTurnScreenOn(true);
-        } else {
-            getWindow().addFlags(
-                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
-                WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
-            );
-        }
+        // 关键：必须在 setContentView 之前设置窗口标志
+        setupWindowFlags();
         
         // 唤醒屏幕
         wakeUpScreen();
@@ -69,22 +60,53 @@ public class AlarmAlertActivity extends AppCompatActivity {
         });
     }
     
+    private void setupWindowFlags() {
+        // 全屏显示，锁屏也能显示 - 兼容所有 Android 版本
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+            setShowWhenLocked(true);
+            setTurnScreenOn(true);
+        }
+        
+        // 添加窗口标志
+        getWindow().addFlags(
+            WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED |
+            WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON |
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON |
+            WindowManager.LayoutParams.FLAG_ALLOW_LOCK_WHILE_SCREEN_ON
+        );
+        
+        // Android 8.0+ 设置窗口类型为闹钟
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            setShowWhenLocked(true);
+        }
+    }
+    
     private void wakeUpScreen() {
         PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+        if (powerManager == null) return;
+        
         boolean isScreenOn = powerManager.isInteractive();
         
         if (!isScreenOn) {
+            // 使用 ACQUIRE_CAUSES_WAKEUP 强制点亮屏幕
             PowerManager.WakeLock wakeLock = powerManager.newWakeLock(
-                PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.SCREEN_BRIGHT_WAKE_LOCK,
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK | 
+                PowerManager.ACQUIRE_CAUSES_WAKEUP,
                 "CalendarAlarm::AlarmWakeLock"
             );
             wakeLock.acquire(60 * 1000); // 亮屏60秒
         }
         
-        // 解锁键盘（如果有）
+        // 解锁键盘（Android 8.0+）
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            KeyguardManager keyguardManager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
-            keyguardManager.requestDismissKeyguard(this, null);
+            try {
+                KeyguardManager keyguardManager = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+                if (keyguardManager != null && keyguardManager.isKeyguardLocked()) {
+                    keyguardManager.requestDismissKeyguard(this, null);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
     }
     
